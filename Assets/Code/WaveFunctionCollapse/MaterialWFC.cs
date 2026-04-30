@@ -133,21 +133,52 @@ public class MaterialWFC {
 	}
 
 	public MaterialPalette GetPalette(Vector3Int position) {
+		return GetPalette(position, -1);
+	}
+
+	// wLayer = -1 means no layer bias (3D map or unspecified)
+	public MaterialPalette GetPalette(Vector3Int position, int wLayer) {
 		if (this.SlotPalettes.TryGetValue(position, out var palette)) {
 			return palette;
 		}
-		// Fallback for unassigned positions (e.g. 4D map): hash by XZ column for vertical coherence
+		// Fallback for unassigned positions (4D map): hash by XZ column for vertical coherence
 		int hash = new Vector3Int(position.x, 0, position.z).GetHashCode();
 		var rng = new System.Random(hash);
+
+		float[] weights = new float[this.palettes.Length];
+		for (int i = 0; i < weights.Length; i++) {
+			weights[i] = this.palettes[i].Probability;
+			if (wLayer >= 0) {
+				weights[i] *= GetLayerBias(wLayer, i);
+			}
+		}
+
 		float totalWeight = 0f;
-		foreach (var p in this.palettes) totalWeight += p.Probability;
+		foreach (var w in weights) totalWeight += w;
 		float roll = (float)(rng.NextDouble() * totalWeight);
 		float cumulative = 0f;
-		foreach (var p in this.palettes) {
-			cumulative += p.Probability;
-			if (cumulative >= roll) return p;
+		for (int i = 0; i < this.palettes.Length; i++) {
+			cumulative += weights[i];
+			if (cumulative >= roll) return this.palettes[i];
 		}
 		return this.palettes[0];
+	}
+
+	// Per-layer multipliers for each of the 6 default palettes:
+	//  0=WarmResidential, 1=CoolCommercial, 2=Industrial, 3=ParkGreen, 4=NeonFuture, 5=DesertSand
+	private static float GetLayerBias(int wLayer, int paletteIndex) {
+		int li = ((wLayer % 6) + 6) % 6;
+		// [W layer][palette index]
+		float[,] bias = {
+			{ 1.6f, 0.8f, 0.3f, 1.2f, 0.2f, 0.5f },  // W0 cyan     — warm residential + green
+			{ 1.0f, 0.4f, 0.4f, 0.5f, 0.2f, 2.5f },  // W1 amber    — desert sand dominant
+			{ 0.3f, 1.4f, 0.8f, 0.3f, 2.5f, 0.2f },  // W2 indigo   — neon future + cool commercial
+			{ 0.5f, 0.6f, 0.2f, 3.5f, 0.2f, 0.4f },  // W3 mint     — park green dominant
+			{ 0.4f, 0.3f, 2.8f, 0.3f, 1.5f, 0.4f },  // W4 red      — industrial + neon
+			{ 0.7f, 2.0f, 0.4f, 0.8f, 0.8f, 0.3f },  // W5 lavender — cool commercial
+		};
+		if (paletteIndex >= 6) return 1f;  // unknown palette: no bias
+		return bias[li, paletteIndex];
 	}
 
 	private static MaterialPalette[] CreateDefaultPalettes() {

@@ -10,6 +10,9 @@ public static class SlotMaterializer {
 	private static readonly int WeatherColorID = Shader.PropertyToID("_WeatherColor");
 	private static readonly int AlphaID = Shader.PropertyToID("_Alpha");
 
+	// Reused across calls to avoid per-frame GC allocations
+	private static readonly MaterialPropertyBlock sharedBlock = new MaterialPropertyBlock();
+
 	public static void Initialize(Material opaque, Material transparent) {
 		opaqueTriplanar = opaque;
 		transparentTriplanar = transparent;
@@ -35,21 +38,22 @@ public static class SlotMaterializer {
 	}
 
 	public static void Apply(Slot4D slot, GameObject gameObject, MaterialPalette palette, float alpha) {
-		ApplyInternal(gameObject, palette, slot.Position.GetHashCode(), alpha, alpha < 1f);
+		// Hash only XZ so every floor of the same column shares the same color jitter
+		int xzHash = slot.Position.x * 1664525 + slot.Position.z * 1013904223;
+		ApplyInternal(gameObject, palette, xzHash, alpha, alpha < 1f);
 	}
 
 	// Called each frame by UpdateSlotPositions to keep alpha in sync with W-distance
 	public static void UpdateAlpha(GameObject gameObject, float alpha) {
 		bool useTransparent = alpha < 1f;
 		Material baseMat = useTransparent ? transparentTriplanar : opaqueTriplanar;
-		var block = new MaterialPropertyBlock();
 		foreach (var renderer in gameObject.GetComponentsInChildren<Renderer>()) {
 			if (baseMat != null && renderer.sharedMaterial != baseMat) {
 				renderer.sharedMaterial = baseMat;
 			}
-			renderer.GetPropertyBlock(block);
-			block.SetFloat(AlphaID, alpha);
-			renderer.SetPropertyBlock(block);
+			renderer.GetPropertyBlock(sharedBlock);
+			sharedBlock.SetFloat(AlphaID, alpha);
+			renderer.SetPropertyBlock(sharedBlock);
 		}
 	}
 
@@ -61,36 +65,33 @@ public static class SlotMaterializer {
 		EnsureInitialized();
 
 		var renderers = gameObject.GetComponentsInChildren<Renderer>();
-		var block = new MaterialPropertyBlock();
 
 		// Use different hash bits for independent per-channel jitter
-		float jitterR = ((positionHash & 0xFF) / 255f - 0.5f) * 0.22f;
-		float jitterG = (((positionHash >> 8) & 0xFF) / 255f - 0.5f) * 0.18f;
-		float jitterB = (((positionHash >> 16) & 0xFF) / 255f - 0.5f) * 0.15f;
+		float jitterR = ((positionHash & 0xFF) / 255f - 0.5f) * 0.12f;
+		float jitterG = (((positionHash >> 8) & 0xFF) / 255f - 0.5f) * 0.10f;
+		float jitterB = (((positionHash >> 16) & 0xFF) / 255f - 0.5f) * 0.08f;
 
 		Color topColor = JitterColorRGB(palette.TopColor, jitterR, jitterG, jitterB);
 		Color sideColor = JitterColorRGB(palette.SideColor, jitterR * 0.8f, jitterG * 0.9f, jitterB);
 		Color bottomColor = JitterColorRGB(palette.BottomColor, jitterR * 0.6f, jitterG, jitterB * 1.2f);
 
+		Material baseMat = useTransparent ? transparentTriplanar : opaqueTriplanar;
 		foreach (var renderer in renderers) {
-			Material baseMat = useTransparent ? transparentTriplanar : opaqueTriplanar;
 			if (baseMat != null) {
 				var mats = new Material[renderer.sharedMaterials.Length];
-				for (int i = 0; i < mats.Length; i++) {
-					mats[i] = baseMat;
-				}
+				for (int i = 0; i < mats.Length; i++) mats[i] = baseMat;
 				renderer.sharedMaterials = mats;
 			}
 
-			renderer.GetPropertyBlock(block);
-			block.SetColor(TopColorID, topColor);
-			block.SetColor(SideColorID, sideColor);
-			block.SetColor(BottomColorID, bottomColor);
-			block.SetColor(WeatherColorID, palette.WeatherColor);
+			renderer.GetPropertyBlock(sharedBlock);
+			sharedBlock.SetColor(TopColorID, topColor);
+			sharedBlock.SetColor(SideColorID, sideColor);
+			sharedBlock.SetColor(BottomColorID, bottomColor);
+			sharedBlock.SetColor(WeatherColorID, palette.WeatherColor);
 			if (useTransparent) {
-				block.SetFloat(AlphaID, alpha);
+				sharedBlock.SetFloat(AlphaID, alpha);
 			}
-			renderer.SetPropertyBlock(block);
+			renderer.SetPropertyBlock(sharedBlock);
 		}
 	}
 

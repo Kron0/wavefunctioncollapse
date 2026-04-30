@@ -106,6 +106,8 @@ public class FourDSetupWizard {
 		EnsureComponent<WSkyboxController>(playerGO, sky => {
 			sky.player = fdc4D;
 		});
+		EnsureComponent<PauseMenu>(playerGO);
+		EnsureComponent<ProceduralAmbience>(playerGO);
 
 		return playerGO;
 	}

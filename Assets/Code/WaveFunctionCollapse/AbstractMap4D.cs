@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
@@ -12,7 +13,7 @@ public abstract class AbstractMap4D {
 	public readonly RingBuffer<HistoryItem4D> History;
 	public readonly QueueDictionary<Vector4Int, ModuleSet> RemovalQueue;
 	private HashSet<Slot4D> workArea;
-	public readonly Queue<Slot4D> BuildQueue;
+	public readonly ConcurrentQueue<Slot4D> BuildQueue;
 
 	private int backtrackBarrier;
 	private int backtrackAmount = 0;
@@ -25,7 +26,7 @@ public abstract class AbstractMap4D {
 		this.History = new RingBuffer<HistoryItem4D>(AbstractMap4D.HISTORY_SIZE);
 		this.History.OnOverflow = item => item.Slot.Forget();
 		this.RemovalQueue = new QueueDictionary<Vector4Int, ModuleSet>(() => new ModuleSet());
-		this.BuildQueue = new Queue<Slot4D>();
+		this.BuildQueue = new ConcurrentQueue<Slot4D>();
 
 		this.InitialModuleHealth = this.createInitialModuleHealth(ModuleData.Current);
 

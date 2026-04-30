@@ -61,7 +61,8 @@ public class GenerateMap4DNearPlayer : MonoBehaviour {
 		}
 
 		this.generate();
-		this.mapBehaviour.BuildAllSlots();
+		// Building is handled gradually by MapBehaviour4D.Update (150 slots/frame)
+		// to avoid freezing the main thread on startup
 
 		this.thread = new Thread(this.generatorThread);
 		this.thread.Start();

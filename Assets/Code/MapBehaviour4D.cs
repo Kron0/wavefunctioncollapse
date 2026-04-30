@@ -57,21 +57,17 @@ public class MapBehaviour4D : MonoBehaviour {
 	}
 
 	public void Update() {
-		if (this.Map == null || this.Map.BuildQueue == null) {
+		if (this.Map == null) {
 			return;
 		}
 
-		int itemsLeft = 50;
+		int itemsLeft = 150;
 
-		while (this.Map.BuildQueue.Count != 0 && itemsLeft > 0) {
-			var slot = this.Map.BuildQueue.Peek();
-			if (slot == null) {
-				return;
-			}
+		while (itemsLeft > 0 && this.Map.BuildQueue.TryDequeue(out var slot)) {
+			if (slot == null) break;
 			if (this.BuildSlot(slot)) {
 				itemsLeft--;
 			}
-			this.Map.BuildQueue.Dequeue();
 		}
 
 		if (this.player != null) {
@@ -137,7 +133,7 @@ public class MapBehaviour4D : MonoBehaviour {
 		slot.GameObject = gameObject;
 
 		if (this.materialWFC != null) {
-			var palette = this.materialWFC.GetPalette(slot.Position.ToVector3Int());
+			var palette = this.materialWFC.GetPalette(slot.Position.ToVector3Int(), slot.Position.w);
 			float slotAlpha = this.projection != null ? this.projection.GetAlpha(slot.Position.w) : 1f;
 			SlotMaterializer.Apply(slot, gameObject, palette, slotAlpha);
 		}
@@ -171,10 +167,8 @@ public class MapBehaviour4D : MonoBehaviour {
 	}
 
 	private void UpdateColliders() {
-		foreach (var slot in this.Map.GetAllSlots().ToArray()) {
-			if (slot.GameObject == null) {
-				continue;
-			}
+		foreach (var slot in this.Map.GetAllSlots()) {
+			if (slot.GameObject == null) continue;
 			SetCollidersEnabled(slot.GameObject, slot.Position.w == this.activeWLayer);
 		}
 	}
@@ -186,8 +180,8 @@ public class MapBehaviour4D : MonoBehaviour {
 	}
 
 	public void BuildAllSlots() {
-		while (this.Map.BuildQueue.Count != 0) {
-			this.BuildSlot(this.Map.BuildQueue.Dequeue());
+		while (this.Map.BuildQueue.TryDequeue(out var slot)) {
+			this.BuildSlot(slot);
 		}
 	}
 
@@ -196,10 +190,8 @@ public class MapBehaviour4D : MonoBehaviour {
 			return;
 		}
 
-		foreach (var slot in this.Map.GetAllSlots().ToArray()) {
-			if (slot.GameObject == null) {
-				continue;
-			}
+		foreach (var slot in this.Map.GetAllSlots()) {
+			if (slot.GameObject == null) continue;
 
 			if (!this.projection.IsInRenderRange(slot.Position.w)) {
 				slot.GameObject.SetActive(false);
