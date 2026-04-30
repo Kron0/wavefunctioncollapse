@@ -39,7 +39,7 @@ public class PauseMenu : MonoBehaviour {
 
 	void Update() {
 		if (Input.GetKeyDown(KeyCode.Escape)) {
-			if (this.IsPaused) {
+			if (IsPaused) {
 				this.Resume();
 			} else {
 				this.Pause();
@@ -48,7 +48,7 @@ public class PauseMenu : MonoBehaviour {
 	}
 
 	void OnGUI() {
-		if (!this.IsPaused) return;
+		if (!IsPaused) return;
 
 		this.EnsureStyles();
 
@@ -234,14 +234,14 @@ public class PauseMenu : MonoBehaviour {
 	}
 
 	private void Pause() {
-		this.IsPaused = true;
+		IsPaused = true;
 		Time.timeScale = 0f;
 		Cursor.lockState = CursorLockMode.None;
 		Cursor.visible = true;
 	}
 
 	private void Resume() {
-		this.IsPaused = false;
+		IsPaused = false;
 		Time.timeScale = 1f;
 		Cursor.lockState = CursorLockMode.Locked;
 		Cursor.visible = false;
