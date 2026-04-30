@@ -22,7 +22,7 @@ public class ControlModeSwitcher : MonoBehaviour {
 			this.SetMode(this.ControlModes[0]);
 		}
 		foreach (var mode in this.ControlModes) {
-			if (mode != this.currentMode) {
+			if (mode != this.currentMode && mode.Behaviour != null) {
 				mode.Behaviour.enabled = false;
 			}
 		}
@@ -48,10 +48,12 @@ public class ControlModeSwitcher : MonoBehaviour {
 		if (this.currentMode == mode) {
 			return;
 		}
-		if (this.currentMode != null) {
+		if (this.currentMode != null && this.currentMode.Behaviour != null) {
 			this.currentMode.Behaviour.enabled = false;
 		}
 		this.currentMode = mode;
-		this.currentMode.Behaviour.enabled = true;
+		if (this.currentMode.Behaviour != null) {
+			this.currentMode.Behaviour.enabled = true;
+		}
 	}
 }

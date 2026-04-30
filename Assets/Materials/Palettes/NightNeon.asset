@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6f52f7b5fc65f7043accb6b19779a814, type: 3}
+  m_Name: NightNeon
+  m_EditorClassIdentifier: 
+  PaletteName: Night Neon
+  TopColor: {r: 0.15, g: 0.15, b: 0.2, a: 1}
+  SideColor: {r: 0.2, g: 0.18, b: 0.25, a: 1}
+  BottomColor: {r: 0.1, g: 0.1, b: 0.12, a: 1}
+  WeatherColor: {r: 0.08, g: 0.08, b: 0.1, a: 1}
+  Probability: 0.1
+  LightColor: {r: 0.7, g: 0.3, b: 1, a: 1}
+  LightIntensity: 1.5
+  FogColor: {r: 0.15, g: 0.12, b: 0.25, a: 1}
+  FogDensity: 0.025
+  CompatibleWith: 

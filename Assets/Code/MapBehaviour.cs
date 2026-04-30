@@ -16,7 +16,12 @@ public class MapBehaviour : MonoBehaviour {
 
 	public ModuleData ModuleData;
 
+	public Material TriplanarMaterial;
+	public Material TriplanarTransparentMaterial;
+	public MaterialPalette[] Palettes;
+
 	private CullingData cullingData;
+	private MaterialWFC materialWFC;
 
 	public Vector3 GetWorldspacePosition(Vector3Int position) {
 		return this.transform.position
@@ -49,6 +54,14 @@ public class MapBehaviour : MonoBehaviour {
 		}
 		this.cullingData = this.GetComponent<CullingData>();
 		this.cullingData.Initialize();
+
+		SlotMaterializer.Initialize(this.TriplanarMaterial, this.TriplanarTransparentMaterial);
+		SlotMaterializer.EnsureInitialized();
+		this.materialWFC = new MaterialWFC(this.Palettes);
+	}
+
+	public MaterialWFC GetMaterialWFC() {
+		return this.materialWFC;
 	}
 
 	public bool Initialized {
@@ -103,6 +116,12 @@ public class MapBehaviour : MonoBehaviour {
 		gameObject.transform.rotation = Quaternion.Euler(Vector3.up * 90f * module.Rotation);
 		slot.GameObject = gameObject;
 		this.cullingData.AddSlot(slot);
+
+		if (this.materialWFC != null) {
+			var palette = this.materialWFC.GetPalette(slot.Position);
+			SlotMaterializer.Apply(slot, gameObject, palette);
+		}
+
 		return true;
 	}
 
@@ -123,7 +142,7 @@ public class MapBehaviour : MonoBehaviour {
 		if (mapBehaviour.Map == null) {
 			return;
 		}
-		foreach (var slot in mapBehaviour.Map.GetAllSlots()) {
+		foreach (var slot in mapBehaviour.Map.GetAllSlots().ToArray()) {
 			if (slot.Collapsed || slot.Modules.Count == ModuleData.Current.Length) {
 				continue;
 			}
