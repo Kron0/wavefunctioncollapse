@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 6
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: BuildingTriplanar
+  m_Shader: {fileID: 4800000, guid: 94c9744f9dfda554c845262e11e7b43f, type: 3}
+  m_ShaderKeywords: 
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BottomNormal:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BottomTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SideNormal:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SideTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TopNormal:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TopTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Floats:
+    - _BlendSharpness: 4
+    - _BrickStrength: 0
+    - _ColorJitter: 0.05
+    - _GlassStrength: 0
+    - _Glossiness: 0.3
+    - _Metallic: 0
+    - _TexScale: 0.5
+    - _WeatherAmount: 0.3
+    - _WeatherHeight: 4
+    - _WeatherNoise: 0.2
+    m_Colors:
+    - _BottomColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+    - _SideColor: {r: 0.7, g: 0.7, b: 0.7, a: 1}
+    - _TopColor: {r: 0.8, g: 0.8, b: 0.8, a: 1}
+    - _WLayerTint: {r: 1, g: 1, b: 1, a: 1}
+    - _WeatherColor: {r: 0.25, g: 0.22, b: 0.18, a: 1}

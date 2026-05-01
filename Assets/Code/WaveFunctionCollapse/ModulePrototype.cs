@@ -59,6 +59,10 @@ public class ModulePrototype : MonoBehaviour {
 	public bool Spawn = true;
 	public bool IsInterior = false;
 
+	// Architectural style affinity — controls WFC module weighting per district.
+	// Leave as All (default) to use name-based heuristic; set explicitly to override.
+	public ArchStyleFlags StyleAffinity = ArchStyleFlags.All;
+
 	public HorizontalFaceDetails Left;
 	public VerticalFaceDetails Down;
 	public HorizontalFaceDetails Back;
