@@ -47,6 +47,12 @@ public class WLayerHUD : MonoBehaviour {
 		}
 		this.previousWLayer = MapBehaviour4D.ActiveWLayer;
 		MapBehaviour4D.OnWLayerChanged += this.HandleWLayerChanged;
+
+		// Guarantee an AudioListener exists — needed for all PlayClipAtPoint calls
+		if (Object.FindObjectOfType<AudioListener>() == null) {
+			var camT = Camera.main != null ? Camera.main.transform : this.transform;
+			camT.gameObject.AddComponent<AudioListener>();
+		}
 	}
 
 	void OnDestroy() {
@@ -222,7 +228,7 @@ public class WLayerHUD : MonoBehaviour {
 		panelBG.color = new Color(0.04f, 0.04f, 0.07f, 0.90f);
 		panelBG.raycastTarget = false;
 
-		// Thin accent bar across the top edge
+		// Thin accent bar pinned to top edge — must ignore layout so VLG doesn't pull it into the flow
 		var abGO = Rect("AccentBar", panelGO.transform);
 		var abRT = abGO.GetComponent<RectTransform>();
 		abRT.anchorMin = new Vector2(0f, 1f);
@@ -230,6 +236,7 @@ public class WLayerHUD : MonoBehaviour {
 		abRT.pivot = new Vector2(0.5f, 1f);
 		abRT.anchoredPosition = Vector2.zero;
 		abRT.sizeDelta = new Vector2(0f, 3f);
+		abGO.AddComponent<LayoutElement>().ignoreLayout = true;
 		this.accentBar = abGO.AddComponent<Image>();
 
 		// Vertical layout group stacks children top-to-bottom
@@ -350,11 +357,20 @@ public class WLayerHUD : MonoBehaviour {
 		return go;
 	}
 
+	private static TMP_FontAsset tmpFont;
+
 	private static TextMeshProUGUI TMP(string name, Transform parent, float size) {
 		var go = Rect(name, parent);
 		var t = go.AddComponent<TextMeshProUGUI>();
 		t.fontSize = size;
 		t.raycastTarget = false;
+		// Load font from package if TMP Essential Resources haven't been imported yet
+		if (t.font == null) {
+			if (tmpFont == null) {
+				tmpFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+			}
+			if (tmpFont != null) t.font = tmpFont;
+		}
 		return t;
 	}
 
