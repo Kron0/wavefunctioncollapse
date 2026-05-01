@@ -1,9 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
-using UnityEditor;
 using UnityEngine;
 using System.Linq;
 using System;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public class ModulePrototype : MonoBehaviour {
 	[System.Serializable]

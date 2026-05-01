@@ -1,0 +1,12 @@
+{
+    "name": "WFC.Map",
+    "references": ["WFC.Core", "WFC.Language"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": []
+}

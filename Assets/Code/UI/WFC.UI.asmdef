@@ -1,0 +1,12 @@
+{
+    "name": "WFC.UI",
+    "references": ["WFC.Core", "WFC.Map", "WFC.World", "WFC.Player", "Unity.TextMeshPro"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": []
+}

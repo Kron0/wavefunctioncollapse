@@ -1,0 +1,630 @@
+using System.Collections;
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+
+public class WLayerHUD : MonoBehaviour {
+	public FourDController player;
+
+	public static bool StartupComplete { get; private set; }
+
+	// ─── Canvas elements ──────────────────────────────────────────────────────
+	private CanvasGroup startupFadeGroup;
+	private Image transitionFlashImage;
+	private Image accentBar;
+	private TextMeshProUGUI bigNumber;
+	private TextMeshProUGUI subLabel;
+	private Image[] layerDots;
+	private Image progressFill;
+	private TextMeshProUGUI artifactText;
+	private Image artifactFill;
+	private TextMeshProUGUI landmarkText;
+	private CanvasGroup landmarkGroup;
+
+	// ─── Artifact notification ────────────────────────────────────────────────
+	private RectTransform       notifRT;
+	private CanvasGroup         notifGroup;
+	private TextMeshProUGUI     notifTitle;
+	private TextMeshProUGUI     notifSubtitle;
+	private Coroutine           notifCoroutine;
+
+	// ─── Neighbourhood card (bottom-left slide-in) ────────────────────────────
+	private RectTransform       hoodRT;
+	private CanvasGroup         hoodGroup;
+	private TextMeshProUGUI     hoodName;
+	private Image               hoodAccent;
+	private Coroutine           hoodCoroutine;
+
+	// ─── State ───────────────────────────────────────────────────────────────
+	private GenerateMap4DNearPlayer generator;
+	private bool fadeStarted;
+	private float fadeAlpha = 1f;
+	private int previousWLayer;
+	private float flashAlpha;
+	private Color flashColor = new Color(0f, 0.8f, 1f);
+	private int previousArtifactCount;
+	private int  currentSubDistrict = -1;
+
+	// =========================================================================
+	// LIFECYCLE
+	// =========================================================================
+
+	void Awake() {
+		StartupComplete = false;
+		this.BuildCanvas();
+	}
+
+	void Start() {
+		this.generator = Object.FindObjectOfType<GenerateMap4DNearPlayer>();
+		if (this.player == null) {
+			var go = GameObject.FindGameObjectWithTag("Player");
+			if (go != null) this.player = go.GetComponent<FourDController>();
+		}
+		if (this.player == null) {
+			this.player = Object.FindObjectOfType<FourDController>();
+		}
+		this.previousWLayer = MapBehaviour4D.ActiveWLayer;
+		MapBehaviour4D.OnWLayerChanged += this.HandleWLayerChanged;
+		CollectibleItem.OnCollected    += this.HandleArtifactCollected;
+
+		// Guarantee an AudioListener exists — needed for all PlayClipAtPoint calls
+		if (Object.FindObjectOfType<AudioListener>() == null) {
+			var camT = Camera.main != null ? Camera.main.transform : this.transform;
+			camT.gameObject.AddComponent<AudioListener>();
+		}
+	}
+
+	void OnDestroy() {
+		MapBehaviour4D.OnWLayerChanged -= this.HandleWLayerChanged;
+		CollectibleItem.OnCollected    -= this.HandleArtifactCollected;
+	}
+
+	private void HandleWLayerChanged(int newLayer) {
+		bool goingUp = newLayer > this.previousWLayer;
+		this.flashColor = goingUp ? new Color(0f, 0.8f, 1f) : new Color(1f, 0.2f, 0.8f);
+		this.flashAlpha = 0.45f;
+
+		// Gate passage sound — one sweep per transition, heard at camera
+		var gateClip = CollectibleAudio.GetGateSound(goingUp ? 1 : -1);
+		var listenPos = Camera.main != null ? Camera.main.transform.position : this.transform.position;
+		AudioSource.PlayClipAtPoint(gateClip, listenPos, 0.55f);
+
+		this.previousWLayer = newLayer;
+		if (this.bigNumber != null) {
+			StartCoroutine(this.PunchTransform(this.bigNumber.transform, 1.35f, 0.18f));
+		}
+	}
+
+	// =========================================================================
+	// UPDATE
+	// =========================================================================
+
+	void Update() {
+		// Startup fade — wait for first chunk then fade over 1.2s
+		if (this.fadeAlpha > 0f) {
+			if (!this.fadeStarted) {
+				if ((this.generator != null && this.generator.GeneratedChunks.Length > 0) || Time.time > 6f) {
+					this.fadeStarted = true;
+				}
+			} else {
+				this.fadeAlpha = Mathf.Max(0f, this.fadeAlpha - Time.deltaTime / 1.2f);
+				if (this.startupFadeGroup != null) this.startupFadeGroup.alpha = this.fadeAlpha;
+				if (this.fadeAlpha <= 0f) { StartupComplete = true; GameState.StartupComplete = true; }
+			}
+		}
+
+		// W-layer transition flash
+		if (this.flashAlpha > 0f) {
+			this.flashAlpha = Mathf.Max(0f, this.flashAlpha - Time.deltaTime / 0.3f);
+		}
+		if (this.transitionFlashImage != null) {
+			this.transitionFlashImage.color = new Color(
+				this.flashColor.r, this.flashColor.g, this.flashColor.b, this.flashAlpha);
+		}
+
+		if (this.player == null) return;
+
+		float wPos  = this.player.WPosition;
+		int   layer = MapBehaviour4D.ActiveWLayer;
+		float frac  = wPos - Mathf.Floor(wPos);
+		Color accent = DimensionColors.ForLayer(layer);
+		int numLayers = DimensionColors.LayerAccents.Length;
+
+		if (this.accentBar != null) this.accentBar.color = accent;
+
+		if (this.bigNumber != null) this.bigNumber.text = $"W{layer}";
+
+		if (this.subLabel != null) this.subLabel.text = wPos.ToString("+0.0;-0.0;0.0");
+
+		// Layer dots
+		if (this.layerDots != null) {
+			int activeDot = ((layer % numLayers) + numLayers) % numLayers;
+			for (int i = 0; i < this.layerDots.Length; i++) {
+				if (this.layerDots[i] == null) continue;
+				Color dc = DimensionColors.ForLayer(i);
+				this.layerDots[i].color = (i == activeDot)
+					? new Color(dc.r, dc.g, dc.b, 1f)
+					: new Color(dc.r * 0.25f, dc.g * 0.25f, dc.b * 0.25f, 0.45f);
+			}
+		}
+
+		// W-fraction progress bar
+		if (this.progressFill != null) {
+			this.progressFill.fillAmount = frac;
+			this.progressFill.color = new Color(accent.r, accent.g, accent.b, 0.85f);
+		}
+
+		// Artifacts
+		int found = CollectiblePlacer.TotalCollected;
+		int total = CollectiblePlacer.TotalPlaced;
+		if (this.artifactText != null) this.artifactText.text = $"{found} / {total}";
+		if (this.artifactFill != null) {
+			this.artifactFill.fillAmount = total > 0 ? (float)found / total : 0f;
+		}
+		if (found > this.previousArtifactCount) {
+			this.previousArtifactCount = found;
+			if (this.artifactText != null) {
+				StartCoroutine(this.PunchTransform(this.artifactText.transform, 1.3f, 0.15f));
+			}
+		}
+
+		// Landmark indicator
+		if (this.landmarkGroup != null) {
+			bool hasLandmarks = LandmarkPlacer.LandmarkCount > 0 && Camera.main != null;
+			this.landmarkGroup.alpha = Mathf.MoveTowards(
+				this.landmarkGroup.alpha, hasLandmarks ? 1f : 0f, Time.deltaTime * 3f);
+
+			if (hasLandmarks && this.landmarkText != null) {
+				Vector3 nearest = NearestLandmark(this.player.transform.position, out float dist);
+				Vector3 vp = Camera.main.WorldToViewportPoint(nearest);
+				bool onScreen = vp.z > 0f && vp.x > 0.05f && vp.x < 0.95f && vp.y > 0.05f && vp.y < 0.95f;
+				string bearing = onScreen ? "●" : ViewportArrow(vp);
+				this.landmarkText.text = $"BEACON  {bearing}  {dist:F0}m";
+				this.landmarkText.color = new Color(accent.r, accent.g, accent.b, 0.85f);
+			}
+		}
+
+		// Neighbourhood entry detection — convert world pos to slot coords for DistrictBiasProvider
+		if (StartupComplete) {
+			float slotX = this.player.transform.position.x / AbstractMap4D.BLOCK_SIZE;
+			float slotZ = this.player.transform.position.z / AbstractMap4D.BLOCK_SIZE;
+			int subType = DistrictBiasProvider.GetSubDistrictType(slotX, slotZ);
+			if (subType != this.currentSubDistrict) {
+				this.currentSubDistrict = subType;
+				string hoodNameStr = DistrictBiasProvider.GetSubDistrictName(slotX, slotZ);
+				Color  hoodColor   = SubDistrictTheme.Get(subType).LightColor;
+				this.ShowNeighbourhoodCard(hoodNameStr, hoodColor);
+			}
+		}
+	}
+
+	// =========================================================================
+	// ANIMATIONS
+	// =========================================================================
+
+	private IEnumerator PunchTransform(Transform t, float targetScale, float duration) {
+		float half = duration * 0.5f;
+		for (float e = 0f; e < half; e += Time.deltaTime) {
+			t.localScale = Vector3.one * Mathf.Lerp(1f, targetScale, e / half);
+			yield return null;
+		}
+		for (float e = 0f; e < half; e += Time.deltaTime) {
+			t.localScale = Vector3.one * Mathf.Lerp(targetScale, 1f, e / half);
+			yield return null;
+		}
+		t.localScale = Vector3.one;
+	}
+
+	// =========================================================================
+	// CANVAS CONSTRUCTION
+	// =========================================================================
+
+	private void BuildCanvas() {
+		var cvGO = new GameObject("HUD_Canvas");
+		cvGO.transform.SetParent(this.transform, false);
+		var cv = cvGO.AddComponent<Canvas>();
+		cv.renderMode = RenderMode.ScreenSpaceOverlay;
+		cv.sortingOrder = 50;
+		var scaler = cvGO.AddComponent<CanvasScaler>();
+		scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+		scaler.referenceResolution = new Vector2(1920f, 1080f);
+		scaler.matchWidthOrHeight = 0.5f;
+		cvGO.AddComponent<GraphicRaycaster>();
+
+		// Startup fade (fullscreen black, fades out)
+		var fadeGO = Rect("StartupFade", cvGO.transform);
+		Stretch(fadeGO);
+		this.startupFadeGroup = fadeGO.AddComponent<CanvasGroup>();
+		this.startupFadeGroup.blocksRaycasts = false;
+		var fadeImg = fadeGO.AddComponent<Image>();
+		fadeImg.color = Color.black;
+		fadeImg.raycastTarget = false;
+
+		// W-layer transition flash (fullscreen, tinted)
+		var flashGO = Rect("TransitionFlash", cvGO.transform);
+		Stretch(flashGO);
+		this.transitionFlashImage = flashGO.AddComponent<Image>();
+		this.transitionFlashImage.color = Color.clear;
+		this.transitionFlashImage.raycastTarget = false;
+
+		this.BuildWPanel(cvGO.transform);
+		this.BuildNotification(cvGO.transform);
+		this.BuildNeighbourhoodCard(cvGO.transform);
+	}
+
+	private void BuildNotification(Transform canvasT) {
+		var go = Rect("ArtifactNotif", canvasT);
+		this.notifRT = go.GetComponent<RectTransform>();
+		this.notifRT.anchorMin = this.notifRT.anchorMax = new Vector2(0.5f, 1f);
+		this.notifRT.pivot = new Vector2(0.5f, 1f);
+		this.notifRT.sizeDelta = new Vector2(480f, 86f);
+		this.notifRT.anchoredPosition = new Vector2(0f, 20f); // hidden above screen
+
+		// Background
+		var bg = go.AddComponent<Image>();
+		bg.color = new Color(0.02f, 0.02f, 0.05f, 0.94f);
+		bg.raycastTarget = false;
+
+		// Gold top accent bar
+		var topBar = Rect("TopBar", go.transform);
+		var tbRT = topBar.GetComponent<RectTransform>();
+		tbRT.anchorMin = new Vector2(0f, 1f); tbRT.anchorMax = new Vector2(1f, 1f);
+		tbRT.pivot = new Vector2(0.5f, 1f);
+		tbRT.anchoredPosition = Vector2.zero;
+		tbRT.sizeDelta = new Vector2(0f, 3f);
+		var tbImg = topBar.AddComponent<Image>();
+		tbImg.color = DimensionColors.ArtifactGold;
+		tbImg.raycastTarget = false;
+
+		// Left accent stripe
+		var stripe = Rect("Stripe", go.transform);
+		var sRT = stripe.GetComponent<RectTransform>();
+		sRT.anchorMin = new Vector2(0f, 0f); sRT.anchorMax = new Vector2(0f, 1f);
+		sRT.pivot = new Vector2(0f, 0.5f);
+		sRT.anchoredPosition = new Vector2(0f, 0f);
+		sRT.sizeDelta = new Vector2(5f, 0f);
+		var sImg = stripe.AddComponent<Image>();
+		sImg.color = new Color(DimensionColors.ArtifactGold.r, DimensionColors.ArtifactGold.g, DimensionColors.ArtifactGold.b, 0.6f);
+		sImg.raycastTarget = false;
+
+		// CanvasGroup for fade
+		this.notifGroup = go.AddComponent<CanvasGroup>();
+		this.notifGroup.alpha = 0f;
+		this.notifGroup.blocksRaycasts = false;
+
+		// Title text — "ARTIFACT FOUND"
+		this.notifTitle = TMP("NotifTitle", go.transform, 22f);
+		this.notifTitle.text = "ARTIFACT FOUND";
+		this.notifTitle.fontStyle = FontStyles.Bold;
+		this.notifTitle.color = DimensionColors.ArtifactGold;
+		this.notifTitle.characterSpacing = 4f;
+		var titleRT = this.notifTitle.GetComponent<RectTransform>();
+		titleRT.anchorMin = new Vector2(0f, 0.5f); titleRT.anchorMax = new Vector2(1f, 1f);
+		titleRT.offsetMin = new Vector2(20f, 4f); titleRT.offsetMax = new Vector2(-20f, -6f);
+
+		// Subtitle — "3 / 12  COLLECTED"
+		this.notifSubtitle = TMP("NotifSub", go.transform, 10f);
+		this.notifSubtitle.text = "0 / 0  COLLECTED";
+		this.notifSubtitle.color = new Color(1f, 1f, 1f, 0.55f);
+		this.notifSubtitle.characterSpacing = 2f;
+		var subRT = this.notifSubtitle.GetComponent<RectTransform>();
+		subRT.anchorMin = new Vector2(0f, 0f); subRT.anchorMax = new Vector2(1f, 0.5f);
+		subRT.offsetMin = new Vector2(20f, 6f); subRT.offsetMax = new Vector2(-20f, -4f);
+	}
+
+	private void HandleArtifactCollected(Vector3 worldPos, int count, int total) {
+		if (this.notifCoroutine != null) StopCoroutine(this.notifCoroutine);
+		if (this.notifSubtitle != null)
+			this.notifSubtitle.text = $"{count} / {total}  COLLECTED";
+		this.notifCoroutine = StartCoroutine(this.ShowNotification());
+	}
+
+	private System.Collections.IEnumerator ShowNotification() {
+		const float slideIn   = 0.22f;
+		const float holdTime  = 2.2f;
+		const float slideOut  = 0.18f;
+		const float hiddenY   = 20f;
+		const float visibleY  = -24f;
+
+		// Slide in
+		for (float e = 0f; e < slideIn; e += Time.deltaTime) {
+			float frac = e / slideIn;
+			float ease = 1f - (1f - frac) * (1f - frac) * (1f - frac); // cubic ease-out
+			this.notifRT.anchoredPosition = new Vector2(0f, Mathf.Lerp(hiddenY, visibleY, ease));
+			this.notifGroup.alpha = ease;
+			yield return null;
+		}
+		this.notifRT.anchoredPosition = new Vector2(0f, visibleY);
+		this.notifGroup.alpha = 1f;
+
+		// Hold
+		yield return new WaitForSeconds(holdTime);
+
+		// Slide out (fades and drops)
+		for (float e = 0f; e < slideOut; e += Time.deltaTime) {
+			float frac = e / slideOut;
+			float ease = frac * frac;
+			this.notifRT.anchoredPosition = new Vector2(0f, Mathf.Lerp(visibleY, visibleY - 30f, ease));
+			this.notifGroup.alpha = 1f - frac;
+			yield return null;
+		}
+		this.notifGroup.alpha = 0f;
+		this.notifRT.anchoredPosition = new Vector2(0f, hiddenY);
+		this.notifCoroutine = null;
+	}
+
+	private void BuildNeighbourhoodCard(Transform canvasT) {
+		var go = Rect("HoodCard", canvasT);
+		this.hoodRT = go.GetComponent<RectTransform>();
+		// Bottom-left anchor
+		this.hoodRT.anchorMin = this.hoodRT.anchorMax = new Vector2(0f, 0f);
+		this.hoodRT.pivot = new Vector2(0f, 0f);
+		this.hoodRT.sizeDelta = new Vector2(340f, 56f);
+		this.hoodRT.anchoredPosition = new Vector2(-360f, 20f); // hidden off left
+
+		var bg = go.AddComponent<Image>();
+		bg.color = new Color(0.02f, 0.02f, 0.05f, 0.92f);
+		bg.raycastTarget = false;
+
+		// Left coloured accent bar — recoloured per neighbourhood theme
+		var accGO = Rect("HoodAccent", go.transform);
+		var accRT = accGO.GetComponent<RectTransform>();
+		accRT.anchorMin = new Vector2(0f, 0f); accRT.anchorMax = new Vector2(0f, 1f);
+		accRT.pivot = new Vector2(0f, 0.5f);
+		accRT.anchoredPosition = Vector2.zero;
+		accRT.sizeDelta = new Vector2(5f, 0f);
+		this.hoodAccent = accGO.AddComponent<Image>();
+		this.hoodAccent.raycastTarget = false;
+
+		// Tiny eyebrow label
+		var eyebrow = TMP("HoodEyebrow", go.transform, 8f);
+		eyebrow.text = "YOU ARE IN";
+		eyebrow.color = new Color(1f, 1f, 1f, 0.30f);
+		eyebrow.fontStyle = FontStyles.Bold;
+		eyebrow.characterSpacing = 3f;
+		var eyeRT = eyebrow.GetComponent<RectTransform>();
+		eyeRT.anchorMin = new Vector2(0f, 0.5f); eyeRT.anchorMax = new Vector2(1f, 1f);
+		eyeRT.offsetMin = new Vector2(18f, 2f); eyeRT.offsetMax = new Vector2(-10f, -4f);
+
+		// Neighbourhood name
+		this.hoodName = TMP("HoodName", go.transform, 17f);
+		this.hoodName.fontStyle = FontStyles.Bold;
+		this.hoodName.color = Color.white;
+		var nameRT = this.hoodName.GetComponent<RectTransform>();
+		nameRT.anchorMin = new Vector2(0f, 0f); nameRT.anchorMax = new Vector2(1f, 0.55f);
+		nameRT.offsetMin = new Vector2(18f, 4f); nameRT.offsetMax = new Vector2(-10f, -2f);
+
+		this.hoodGroup = go.AddComponent<CanvasGroup>();
+		this.hoodGroup.alpha = 0f;
+		this.hoodGroup.blocksRaycasts = false;
+	}
+
+	private void ShowNeighbourhoodCard(string name, Color accentColor) {
+		if (this.hoodRT == null) return;
+		if (this.hoodName    != null) this.hoodName.text  = name;
+		if (this.hoodAccent  != null) this.hoodAccent.color = accentColor;
+		if (this.hoodCoroutine != null) StopCoroutine(this.hoodCoroutine);
+		this.hoodCoroutine = StartCoroutine(this.ShowHoodCard());
+	}
+
+	private IEnumerator ShowHoodCard() {
+		const float slideIn  = 0.28f;
+		const float holdTime = 3.0f;
+		const float slideOut = 0.22f;
+		const float hiddenX  = -360f;
+		const float visibleX = 20f;
+
+		for (float e = 0f; e < slideIn; e += Time.deltaTime) {
+			float frac = e / slideIn;
+			float ease = 1f - (1f - frac) * (1f - frac) * (1f - frac);
+			this.hoodRT.anchoredPosition = new Vector2(Mathf.Lerp(hiddenX, visibleX, ease), 20f);
+			this.hoodGroup.alpha = ease;
+			yield return null;
+		}
+		this.hoodRT.anchoredPosition = new Vector2(visibleX, 20f);
+		this.hoodGroup.alpha = 1f;
+
+		yield return new WaitForSeconds(holdTime);
+
+		for (float e = 0f; e < slideOut; e += Time.deltaTime) {
+			float frac = e / slideOut;
+			float ease = frac * frac;
+			this.hoodRT.anchoredPosition = new Vector2(Mathf.Lerp(visibleX, hiddenX, ease), 20f);
+			this.hoodGroup.alpha = 1f - frac;
+			yield return null;
+		}
+		this.hoodGroup.alpha = 0f;
+		this.hoodRT.anchoredPosition = new Vector2(hiddenX, 20f);
+		this.hoodCoroutine = null;
+	}
+
+	private void BuildWPanel(Transform canvasT) {
+		// ── Panel root ────────────────────────────────────────────────────────
+		var panelGO = Rect("WPanel", canvasT);
+		var panelRT = panelGO.GetComponent<RectTransform>();
+		panelRT.anchorMin = panelRT.anchorMax = panelRT.pivot = new Vector2(1f, 0f);
+		panelRT.anchoredPosition = new Vector2(-20f, 20f);
+		panelRT.sizeDelta = new Vector2(260f, 234f);
+		var panelBG = panelGO.AddComponent<Image>();
+		panelBG.color = new Color(0.04f, 0.04f, 0.07f, 0.90f);
+		panelBG.raycastTarget = false;
+
+		// Thin accent bar pinned to top edge — must ignore layout so VLG doesn't pull it into the flow
+		var abGO = Rect("AccentBar", panelGO.transform);
+		var abRT = abGO.GetComponent<RectTransform>();
+		abRT.anchorMin = new Vector2(0f, 1f);
+		abRT.anchorMax = new Vector2(1f, 1f);
+		abRT.pivot = new Vector2(0.5f, 1f);
+		abRT.anchoredPosition = Vector2.zero;
+		abRT.sizeDelta = new Vector2(0f, 3f);
+		abGO.AddComponent<LayoutElement>().ignoreLayout = true;
+		this.accentBar = abGO.AddComponent<Image>();
+
+		// Vertical layout group stacks children top-to-bottom
+		var vlg = panelGO.AddComponent<VerticalLayoutGroup>();
+		vlg.padding = new RectOffset(18, 18, 14, 14);
+		vlg.spacing = 5f;
+		vlg.childControlWidth = true;
+		vlg.childControlHeight = false;
+		vlg.childForceExpandWidth = true;
+		vlg.childForceExpandHeight = false;
+
+		// Header label
+		var hdr = TMP("Header", panelGO.transform, 9f);
+		hdr.text = "PERSONAL DIMENSION";
+		hdr.color = new Color(1f, 1f, 1f, 0.35f);
+		hdr.fontStyle = FontStyles.Bold;
+		hdr.characterSpacing = 3f;
+		LE(hdr.gameObject, 14f);
+
+		// Big W layer number — punches on layer change
+		this.bigNumber = TMP("WNumber", panelGO.transform, 58f);
+		this.bigNumber.text = "W0";
+		this.bigNumber.fontStyle = FontStyles.Bold;
+		LE(this.bigNumber.gameObject, 72f);
+
+		// Decimal W position sub-label
+		this.subLabel = TMP("WSubLabel", panelGO.transform, 12f);
+		this.subLabel.color = new Color(1f, 1f, 1f, 0.5f);
+		LE(this.subLabel.gameObject, 16f);
+
+		// Layer dots (one per W layer, horizontal row)
+		var dotsGO = Rect("LayerDots", panelGO.transform);
+		var hlg = dotsGO.AddComponent<HorizontalLayoutGroup>();
+		hlg.spacing = 5f;
+		hlg.childControlWidth = false;
+		hlg.childControlHeight = false;
+		hlg.childForceExpandWidth = false;
+		hlg.childForceExpandHeight = false;
+		LE(dotsGO, 10f);
+
+		this.layerDots = new Image[DimensionColors.LayerAccents.Length];
+		for (int i = 0; i < this.layerDots.Length; i++) {
+			var dGO = Rect($"Dot{i}", dotsGO.transform);
+			dGO.GetComponent<RectTransform>().sizeDelta = new Vector2(16f, 10f);
+			this.layerDots[i] = dGO.AddComponent<Image>();
+		}
+
+		// W-fraction progress bar (how far between integer layers)
+		var pbGO = Rect("ProgressBG", panelGO.transform);
+		pbGO.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.1f);
+		LE(pbGO, 4f);
+		var pfGO = Rect("ProgressFill", pbGO.transform);
+		Stretch(pfGO);
+		this.progressFill = pfGO.AddComponent<Image>();
+		this.progressFill.type = Image.Type.Filled;
+		this.progressFill.fillMethod = Image.FillMethod.Horizontal;
+		this.progressFill.fillOrigin = 0;
+
+		// Divider
+		var divGO = Rect("Divider", panelGO.transform);
+		divGO.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.10f);
+		LE(divGO, 1f);
+
+		// Artifact row: label on left, count on right
+		var arGO = Rect("ArtifactRow", panelGO.transform);
+		var arHLG = arGO.AddComponent<HorizontalLayoutGroup>();
+		arHLG.childControlWidth = true;
+		arHLG.childControlHeight = false;
+		arHLG.childForceExpandWidth = false;
+		arHLG.childForceExpandHeight = false;
+		LE(arGO, 16f);
+
+		var arLbl = TMP("ArtLabel", arGO.transform, 9f);
+		arLbl.text = "ARTIFACTS";
+		arLbl.color = new Color(1f, 1f, 1f, 0.38f);
+		arLbl.fontStyle = FontStyles.Bold;
+		arLbl.characterSpacing = 2f;
+		var arLblLE = arLbl.gameObject.AddComponent<LayoutElement>();
+		arLblLE.flexibleWidth = 1f;
+		arLblLE.preferredHeight = 16f;
+
+		this.artifactText = TMP("ArtCount", arGO.transform, 11f);
+		this.artifactText.alignment = TextAlignmentOptions.Right;
+		this.artifactText.fontStyle = FontStyles.Bold;
+		this.artifactText.color = DimensionColors.ArtifactGold;
+		var artCountLE = this.artifactText.gameObject.AddComponent<LayoutElement>();
+		artCountLE.preferredWidth = 55f;
+		artCountLE.preferredHeight = 16f;
+
+		// Artifact fill bar
+		var abBarGO = Rect("ArtifactBG", panelGO.transform);
+		abBarGO.AddComponent<Image>().color = new Color(1f, 0.85f, 0.25f, 0.12f);
+		LE(abBarGO, 3f);
+		var afGO = Rect("ArtifactFill", abBarGO.transform);
+		Stretch(afGO);
+		this.artifactFill = afGO.AddComponent<Image>();
+		this.artifactFill.type = Image.Type.Filled;
+		this.artifactFill.fillMethod = Image.FillMethod.Horizontal;
+		this.artifactFill.fillOrigin = 0;
+		this.artifactFill.color = DimensionColors.ArtifactGold;
+
+		// Landmark row (fades in when beacons exist)
+		var lmGO = Rect("LandmarkRow", panelGO.transform);
+		LE(lmGO, 16f);
+		this.landmarkGroup = lmGO.AddComponent<CanvasGroup>();
+		this.landmarkGroup.alpha = 0f;
+		this.landmarkGroup.blocksRaycasts = false;
+		this.landmarkText = TMP("LandmarkText", lmGO.transform, 9f);
+		this.landmarkText.color = new Color(1f, 1f, 1f, 0.75f);
+		Stretch(this.landmarkText.gameObject);
+	}
+
+	// ─── Construction helpers ─────────────────────────────────────────────────
+
+	private static GameObject Rect(string name, Transform parent) {
+		var go = new GameObject(name, typeof(RectTransform));
+		go.transform.SetParent(parent, false);
+		return go;
+	}
+
+	private static TMP_FontAsset tmpFont;
+
+	private static TextMeshProUGUI TMP(string name, Transform parent, float size) {
+		var go = Rect(name, parent);
+		var t = go.AddComponent<TextMeshProUGUI>();
+		t.fontSize = size;
+		t.raycastTarget = false;
+		// Load font from package if TMP Essential Resources haven't been imported yet
+		if (t.font == null) {
+			if (tmpFont == null) {
+				tmpFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+			}
+			if (tmpFont != null) t.font = tmpFont;
+		}
+		return t;
+	}
+
+	private static void Stretch(GameObject go) {
+		var rt = go.GetComponent<RectTransform>();
+		rt.anchorMin = Vector2.zero;
+		rt.anchorMax = Vector2.one;
+		rt.offsetMin = rt.offsetMax = Vector2.zero;
+	}
+
+	private static void LE(GameObject go, float height) {
+		go.AddComponent<LayoutElement>().preferredHeight = height;
+	}
+
+	// ─── Runtime helpers ──────────────────────────────────────────────────────
+
+	private static Vector3 NearestLandmark(Vector3 from, out float dist) {
+		var positions = LandmarkPlacer.LandmarkWorldPositions;
+		dist = float.MaxValue;
+		if (positions == null || positions.Count == 0) return from;
+		Vector3 nearest = positions[0];
+		foreach (var p in positions) {
+			float d = Vector3.Distance(from, p);
+			if (d < dist) { dist = d; nearest = p; }
+		}
+		return nearest;
+	}
+
+	private static string ViewportArrow(Vector3 viewport) {
+		Vector2 dir = new Vector2(viewport.x - 0.5f, viewport.y - 0.5f);
+		if (viewport.z <= 0f) dir = -dir;
+		float angle = (Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg + 360f) % 360f;
+		int sector = Mathf.RoundToInt(angle / 45f) % 8;
+		return new[] { "→", "↗", "↑", "↖", "←", "↙", "↓", "↘" }[sector];
+	}
+}

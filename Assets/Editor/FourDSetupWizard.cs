@@ -50,6 +50,7 @@ public class FourDSetupWizard {
 		EnsureComponent<HumanDetailPlacer>(go);
 		EnsureComponent<ClockHandPlacer>(go);
 		EnsureComponent<GroundPlane>(go);
+		EnsureComponent<ChunkAtmosphere4D>(go);
 
 		return go;
 	}
@@ -109,12 +110,14 @@ public class FourDSetupWizard {
 		EnsureComponent<WLayerHUD>(playerGO, hud => {
 			hud.player = fdc4D;
 		});
+		EnsureComponent<LogToFile>(playerGO);
 		EnsureComponent<WTransitionEffect>(playerGO);
 		EnsureComponent<WSkyboxController>(playerGO, sky => {
 			sky.player = fdc4D;
 		});
 		EnsureComponent<PauseMenu>(playerGO);
 		EnsureComponent<ProceduralAmbience>(playerGO);
+		EnsureComponent<SynthesisEndScreen>(playerGO);
 
 		return playerGO;
 	}

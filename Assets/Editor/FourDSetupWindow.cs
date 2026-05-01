@@ -64,6 +64,7 @@ public class FourDSetupWindow : EditorWindow {
 			this.DrawComponentStatus<ClockHandPlacer>(map4D,  "ClockHandPlacer");
 			this.DrawComponentStatus<ArtworkPlacer>(map4D,    "ArtworkPlacer");
 			this.DrawComponentStatus<GroundPlane>(map4D,      "GroundPlane");
+			this.DrawComponentStatus<ChunkAtmosphere4D>(map4D, "ChunkAtmosphere4D");
 			EditorGUI.indentLevel--;
 		}
 
@@ -76,7 +77,8 @@ public class FourDSetupWindow : EditorWindow {
 			this.DrawComponentStatus<WTransitionEffect>(player, "WTransitionEffect");
 			this.DrawComponentStatus<WSkyboxController>(player, "WSkyboxController");
 			this.DrawComponentStatus<ProceduralAmbience>(player, "ProceduralAmbience");
-			this.DrawComponentStatus<PauseMenu>(player,        "PauseMenu");
+			this.DrawComponentStatus<PauseMenu>(player,             "PauseMenu");
+			this.DrawComponentStatus<SynthesisEndScreen>(player,    "SynthesisEndScreen");
 			EditorGUI.indentLevel--;
 		}
 

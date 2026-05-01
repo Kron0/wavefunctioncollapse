@@ -1,0 +1,12 @@
+{
+    "name": "WFC.Editor",
+    "references": ["WFC.Core", "WFC.Language", "WFC.Map", "WFC.Culling", "WFC.Trees", "WFC.World", "WFC.Player", "WFC.UI"],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": []
+}

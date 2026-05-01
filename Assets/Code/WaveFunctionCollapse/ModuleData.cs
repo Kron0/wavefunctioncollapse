@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
-using UnityEditor;
 using System;
 
 [CreateAssetMenu(menuName = "Wave Function Collapse/Module Data", fileName = "modules.asset")]

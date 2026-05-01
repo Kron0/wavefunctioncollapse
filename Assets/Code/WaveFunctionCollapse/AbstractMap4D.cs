@@ -80,6 +80,7 @@ public abstract class AbstractMap4D {
 						minEntropy = entropy;
 					}
 				}
+				if (selected == null) break;
 				try {
 					selected.CollapseRandom();
 				}
