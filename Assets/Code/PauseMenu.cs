@@ -48,7 +48,7 @@ public class PauseMenu : MonoBehaviour {
 	}
 
 	void OnGUI() {
-		if (!IsPaused) return;
+		if (!PauseMenu.IsPaused) return;
 
 		this.EnsureStyles();
 

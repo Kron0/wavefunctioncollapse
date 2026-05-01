@@ -5,7 +5,7 @@ using System.Linq;
 using System;
 
 public abstract class AbstractMap4D {
-	public const float BLOCK_SIZE = 2f;
+	public const float BLOCK_SIZE = 3f;
 	public const int HISTORY_SIZE = 3000;
 
 	public static System.Random Random;

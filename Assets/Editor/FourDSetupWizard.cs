@@ -38,12 +38,13 @@ public class FourDSetupWizard {
 
 		EnsureComponent<GenerateMap4DNearPlayer>(go, gen => {
 			gen.ChunkSize = 4;
-			gen.Range = 30f;
+			gen.Range = 48f;
 		});
 
 		EnsureComponent<LandmarkPlacer>(go);
 		EnsureComponent<CollectiblePlacer>(go);
 		EnsureComponent<WGatePlacer>(go);
+		EnsureComponent<ArtworkPlacer>(go);
 
 		return go;
 	}
@@ -99,6 +100,7 @@ public class FourDSetupWizard {
 			EditorUtility.SetDirty(switcher);
 		}
 
+		EnsureComponent<WLayerColorizer>(playerGO);
 		EnsureComponent<WLayerHUD>(playerGO, hud => {
 			hud.player = fdc4D;
 		});
@@ -120,7 +122,7 @@ public class FourDSetupWizard {
 
 		// Position player at a sensible starting point above the map
 		if (playerGO.transform.position == Vector3.zero) {
-			playerGO.transform.position = new Vector3(0, 6f, 0);
+			playerGO.transform.position = new Vector3(0, 9f, 0);
 		}
 
 		// Disable the 3D map GameObject if present (avoid running both at once)

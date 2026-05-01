@@ -119,14 +119,16 @@ public class MapBehaviour4D : MonoBehaviour {
 		GameObject.DestroyImmediate(gameObject.GetComponent<ModulePrototype>());
 		gameObject.transform.parent = this.transform;
 
+		float blockScale = AbstractMap4D.BLOCK_SIZE / 2f;
 		if (this.projection != null) {
 			gameObject.transform.position = this.projection.ProjectPosition(slot.Position);
 			float scale = this.projection.GetScale(slot.Position.w);
-			gameObject.transform.localScale = Vector3.one * scale;
+			gameObject.transform.localScale = Vector3.one * scale * blockScale;
 		} else {
 			gameObject.transform.position = this.transform.position
 				+ Vector3.up * AbstractMap4D.BLOCK_SIZE / 2f
 				+ slot.Position.ToVector3() * AbstractMap4D.BLOCK_SIZE;
+			gameObject.transform.localScale = Vector3.one * blockScale;
 		}
 
 		gameObject.transform.rotation = Quaternion.Euler(Vector3.up * 90f * module.Rotation);
@@ -167,7 +169,7 @@ public class MapBehaviour4D : MonoBehaviour {
 	}
 
 	private void UpdateColliders() {
-		foreach (var slot in this.Map.GetAllSlots()) {
+		foreach (var slot in this.Map.GetAllSlots().ToArray()) {
 			if (slot.GameObject == null) continue;
 			SetCollidersEnabled(slot.GameObject, slot.Position.w == this.activeWLayer);
 		}
@@ -190,7 +192,7 @@ public class MapBehaviour4D : MonoBehaviour {
 			return;
 		}
 
-		foreach (var slot in this.Map.GetAllSlots()) {
+		foreach (var slot in this.Map.GetAllSlots().ToArray()) {
 			if (slot.GameObject == null) continue;
 
 			if (!this.projection.IsInRenderRange(slot.Position.w)) {
@@ -201,7 +203,7 @@ public class MapBehaviour4D : MonoBehaviour {
 			slot.GameObject.SetActive(true);
 			slot.GameObject.transform.position = this.projection.ProjectPosition(slot.Position);
 			float scale = this.projection.GetScale(slot.Position.w);
-			slot.GameObject.transform.localScale = Vector3.one * scale;
+			slot.GameObject.transform.localScale = Vector3.one * scale * (AbstractMap4D.BLOCK_SIZE / 2f);
 
 			float alpha = this.projection.GetAlpha(slot.Position.w);
 			SlotMaterializer.UpdateAlpha(slot.GameObject, alpha);
